@@ -1,0 +1,8 @@
+﻿# Loại bỏ file cấu hình bảo mật
+appsettings.json
+appsettings.Development.json
+
+# Loại bỏ các file rác khi build project
+[Bb]in/
+[Oo]bj/
+.vs/

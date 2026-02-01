@@ -1,0 +1,69 @@
+<div class="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+  <div class="bg-white w-full max-w-[460px] rounded-[3rem] shadow-2xl shadow-slate-200/60 p-12 border border-slate-100 animate-in fade-in zoom-in duration-500">
+    
+    <div class="text-center mb-10">
+      <div routerLink="/customer/home" class="cursor-pointer group inline-block">
+        <div class="w-20 h-20 bg-indigo-600 rounded-[2.5rem] flex items-center justify-center shadow-xl shadow-indigo-500/30 mx-auto mb-6 transform hover:rotate-12 transition-all duration-500">
+          <i class="fas fa-shoe-prints text-white text-3xl"></i>
+        </div>
+        
+        <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter italic">Shoe Store</h1>
+        <p class="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Hệ thống quản lý kho hàng</p>
+      </div>
+    </div>
+
+    <div class="space-y-4 mb-8">
+      <div id="buttonDiv" class="w-full flex justify-center overflow-hidden rounded-2xl"></div>
+    </div>
+
+    <div class="relative mb-8 text-center">
+      <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-100"></div></div>
+      <span class="relative bg-white px-4 text-[9px] uppercase font-black tracking-widest text-slate-300">Hoặc dùng tài khoản hệ thống</span>
+    </div>
+
+    <form (submit)="onLogin()" class="space-y-6">
+      <div>
+        <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block">Tên đăng nhập</label>
+        <div class="relative">
+          <i class="fas fa-user absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          <input type="text" [(ngModel)]="loginData.Username" name="username" 
+                 placeholder="user1"
+                 class="w-full bg-slate-50 pl-12 pr-6 py-4 rounded-2xl outline-none font-bold text-slate-700 border-2 transition-all"
+                 [class.border-red-500]="errors.Username" [class.border-transparent]="!errors.Username">
+        </div>
+        <p *ngIf="errors.Username" class="text-[10px] text-red-500 font-bold mt-2 ml-2 italic animate-in fade-in">
+          <i class="fas fa-exclamation-circle mr-1"></i> {{ errors.Username }}
+        </p>
+      </div>
+
+      <div>
+        <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block">Mật khẩu</label>
+        <div class="relative">
+          <i class="fas fa-lock absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="loginData.Password" name="password"
+                placeholder="••••••••"
+                class="w-full bg-slate-50 pl-12 pr-14 py-4 rounded-2xl outline-none font-bold text-slate-700 border-2 transition-all"
+                [class.border-red-500]="errors.Password" [class.border-transparent]="!errors.Password">
+          
+          <button type="button" (click)="togglePassword()" 
+                  class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors">
+            <i class="fas" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+          </button>
+        </div>
+        <p *ngIf="errors.Password" class="text-[10px] text-red-500 font-bold mt-2 ml-2 italic animate-in fade-in">
+          <i class="fas fa-exclamation-circle mr-1"></i> {{ errors.Password }}
+        </p>
+      </div>
+      
+      <input type="submit" value="Vào trang quản trị"
+              class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 hover:-translate-y-0.5 active:scale-95 transition-all mt-4 cursor-pointer">
+    </form>
+    
+    <div class="text-center mt-10">
+      <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+        Chưa có quyền truy cập? 
+        <a routerLink="/account/register" class="text-indigo-600 hover:text-indigo-700 transition-colors ml-1 font-black underline underline-offset-4">Đăng ký ngay</a>
+      </p>
+    </div>
+  </div>
+</div>

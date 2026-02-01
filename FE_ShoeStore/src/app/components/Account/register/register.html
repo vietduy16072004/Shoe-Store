@@ -1,0 +1,125 @@
+<div class="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+  
+  <div class="bg-white w-full max-w-[680px] rounded-[3rem] shadow-2xl p-12 border border-slate-100 animate-in slide-in-from-bottom duration-500">
+    
+    <div class="mb-10 flex items-center gap-6">
+        <div class="w-16 h-16 bg-slate-900 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-slate-300">
+            <i class="fas fa-user-plus text-white text-2xl"></i>
+        </div>
+        <div>
+            <h2 class="text-2xl font-black text-slate-900 uppercase tracking-tighter">Tạo tài khoản mới</h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gia nhập đội ngũ Shoe Store</p>
+        </div>
+    </div>
+    
+    <form (submit)="onRegister()" class="grid grid-cols-2 gap-x-8 gap-y-6">
+      
+      <div class="col-span-2">
+        <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block ml-1">Tên đăng nhập *</label>
+        <div class="relative">
+          <i class="fas fa-user absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          <input type="text" [(ngModel)]="regData.username" name="u" 
+                 placeholder="nguyenvana123"
+                 class="w-full bg-slate-50 pl-12 pr-6 py-4 rounded-2xl outline-none font-bold text-slate-700 border-2 transition-all"
+                 [class.border-red-500]="errors.username" 
+                 [class.border-transparent]="!errors.username"
+                 [class.focus:border-indigo-500]="!errors.username">
+        </div>
+        <p *ngIf="errors.username" class="text-[9px] text-red-500 font-bold mt-2 ml-2 italic animate-in fade-in">
+          <i class="fas fa-exclamation-circle mr-1"></i> {{ errors.username }}
+        </p>
+      </div>
+      
+      <div class="col-span-2 md:col-span-1">
+        <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block ml-1">Mật khẩu *</label>
+        <div class="relative">
+          <i class="fas fa-lock absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          <input [type]="showP ? 'text' : 'password'" [(ngModel)]="regData.password" name="p" 
+                 placeholder="Tối thiểu 6 ký tự"
+                 class="w-full bg-slate-50 pl-12 pr-14 py-4 rounded-2xl outline-none font-bold text-slate-700 border-2 transition-all"
+                 [class.border-red-500]="errors.password"
+                 [class.border-transparent]="!errors.password"
+                 [class.focus:border-indigo-500]="!errors.password">
+          <button type="button" (click)="showP = !showP" class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors">
+            <i class="fas" [ngClass]="showP ? 'fa-eye-slash' : 'fa-eye'"></i>
+          </button>
+        </div>
+        <p *ngIf="errors.password" class="text-[9px] text-red-500 font-bold mt-2 ml-2 italic animate-in fade-in">
+          <i class="fas fa-exclamation-circle mr-1"></i> {{ errors.password }}
+        </p>
+      </div>
+
+      <div class="col-span-2 md:col-span-1">
+        <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block ml-1">Xác nhận mật khẩu *</label>
+        <div class="relative">
+          <i class="fas fa-check-double absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          <input [type]="showCP ? 'text' : 'password'" [(ngModel)]="confirmPassword" name="cp" 
+                 placeholder="Nhập lại mật khẩu"
+                 class="w-full bg-slate-50 pl-12 pr-14 py-4 rounded-2xl outline-none font-bold text-slate-700 border-2 transition-all"
+                 [class.border-red-500]="errors.confirmPassword"
+                 [class.border-transparent]="!errors.confirmPassword"
+                 [class.focus:border-indigo-500]="!errors.confirmPassword">
+          <button type="button" (click)="showCP = !showCP" class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors">
+            <i class="fas" [ngClass]="showCP ? 'fa-eye-slash' : 'fa-eye'"></i>
+          </button>
+        </div>
+        <p *ngIf="errors.confirmPassword" class="text-[9px] text-red-500 font-bold mt-2 ml-2 italic animate-in fade-in">
+          <i class="fas fa-exclamation-circle mr-1"></i> {{ errors.confirmPassword }}
+        </p>
+      </div>
+
+      <div class="col-span-2 md:col-span-1">
+        <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block ml-1">Email (Gmail) *</label>
+        <div class="relative">
+          <i class="fas fa-envelope absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          <input type="email" [(ngModel)]="regData.email" name="e" 
+                 placeholder="example@gmail.com"
+                 class="w-full bg-slate-50 pl-12 pr-6 py-4 rounded-2xl outline-none font-bold text-slate-700 border-2 transition-all"
+                 [class.border-red-500]="errors.email"
+                 [class.border-transparent]="!errors.email"
+                 [class.focus:border-indigo-500]="!errors.email">
+        </div>
+        <p *ngIf="errors.email" class="text-[9px] text-red-500 font-bold mt-2 ml-2 italic animate-in fade-in">
+          <i class="fas fa-exclamation-circle mr-1"></i> {{ errors.email }}
+        </p>
+      </div>
+
+      <div class="col-span-2 md:col-span-1">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Số điện thoại *</label>
+        <div class="relative">
+          <i class="fas fa-phone absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          <input type="text" [(ngModel)]="regData.phone" name="ph" 
+                 placeholder="09xx xxx xxx"
+                 class="w-full bg-slate-50 pl-12 pr-6 py-4 rounded-2xl outline-none font-bold text-slate-700 border-2 transition-all"
+                 [class.border-red-500]="errors.phone"
+                 [class.border-transparent]="!errors.phone"
+                 [class.focus:border-slate-900]="!errors.phone">
+        </div>
+        <p *ngIf="errors.phone" class="text-[9px] text-red-500 font-bold mt-2 ml-2 italic animate-in fade-in">
+          <i class="fas fa-exclamation-circle mr-1"></i> {{ errors.phone }}
+        </p>
+      </div>
+
+      <div class="col-span-2">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Địa chỉ nhận hàng</label>
+        <div class="relative">
+          <i class="fas fa-map-marker-alt absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          <input type="text" [(ngModel)]="regData.address" name="ad" 
+                 placeholder="123 Đường ABC"
+                 class="w-full bg-slate-50 pl-12 pr-6 py-4 rounded-2xl outline-none font-bold text-slate-700 border-2 border-transparent focus:border-slate-900 transition-all">
+        </div>
+      </div>
+
+      <button type="submit" 
+              class="col-span-2 bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 hover:bg-black transition-all mt-6 transform active:scale-95">
+        Xác nhận tạo tài khoản
+      </button>
+    </form>
+
+    <div class="mt-10 pt-8 border-t border-slate-50 text-center">
+        <a routerLink="/account/login" class="text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors group">
+            Đã có tài khoản hệ thống? <span class="text-indigo-600 ml-1 font-black underline decoration-2 underline-offset-4 group-hover:text-indigo-700">Quay lại đăng nhập</span>
+        </a>
+    </div>
+  </div>
+</div>

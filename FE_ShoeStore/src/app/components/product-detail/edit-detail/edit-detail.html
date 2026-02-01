@@ -1,0 +1,54 @@
+<div class="container mx-auto p-10 max-w-6xl animate-in slide-in-from-bottom duration-500">
+  <div class="flex items-center gap-6 mb-12">
+    <a [routerLink]="['/product-detail', editingData.product_Id]" class="bg-white p-4 rounded-2xl shadow-sm hover:text-indigo-600 transition-all">
+      <i class="fas fa-chevron-left"></i>
+    </a>
+    <h2 class="text-3xl font-black text-gray-900 uppercase tracking-tighter">Sửa cấu hình chi tiết</h2>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+    <div class="lg:col-span-1 bg-white p-10 rounded-[3rem] shadow-xl border border-gray-50">
+      <h4 class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-8">Thông tin cơ bản</h4>
+      <div class="space-y-6">
+        <div>
+          <label class="text-[10px] font-black text-gray-400 uppercase mb-3 block">Kích thước</label>
+          <select [(ngModel)]="editingData.size_Id" class="w-full bg-gray-50 px-6 py-4 rounded-2xl font-bold border-2 border-transparent focus:border-orange-500 outline-none transition-all">
+            <option *ngFor="let s of sizeList" [value]="s.size_Id">{{ s.size_Name }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] font-black text-gray-400 uppercase mb-3 block">Màu sắc</label>
+          <select [(ngModel)]="editingData.variants_Id" class="w-full bg-gray-50 px-6 py-4 rounded-2xl font-bold border-2 border-transparent focus:border-orange-500 outline-none transition-all">
+            <option *ngFor="let v of variantList" [value]="v.variants_Id">{{ v.variants_Name }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] font-black text-gray-400 uppercase mb-3 block">Số lượng tồn</label>
+          <input type="number" [(ngModel)]="editingData.quantity" class="w-full bg-gray-50 px-6 py-4 rounded-2xl font-bold text-orange-600 outline-none border-2 border-transparent focus:border-orange-500 transition-all">
+        </div>
+        <button (click)="onUpdateInfo()" class="w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-orange-600 active:scale-95 transition-all">
+          LƯU THÔNG TIN
+        </button>
+      </div>
+    </div>
+
+    <div class="lg:col-span-2 bg-gray-900 p-10 rounded-[3rem] shadow-2xl text-white">
+      <h4 class="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] mb-8">Thư viện hình ảnh (Max 3)</h4>
+      <div class="flex flex-wrap gap-8">
+        <div *ngFor="let img of editingData.images" class="relative group">
+          <img [src]="'https://localhost:7168/images/DB9/' + img.imagePath" class="w-48 h-48 object-cover rounded-[2.5rem] border-4 border-gray-800 group-hover:border-orange-500 transition-all shadow-2xl">
+          <button (click)="onDeleteImage(img.productImage_Id)" class="absolute -top-3 -right-3 bg-red-600 w-10 h-10 rounded-full border-4 border-gray-900 flex items-center justify-center hover:scale-110 transition-transform">✕</button>
+          <label class="absolute bottom-4 left-4 right-4 bg-white/10 backdrop-blur-md text-[10px] font-black py-2 rounded-xl text-center cursor-pointer hover:bg-white/20 transition-all uppercase">
+            Thay thế
+            <input type="file" (change)="onReplaceImage($event, img.productImage_Id)" class="hidden" accept="image/*">
+          </label>
+        </div>
+
+        <label *ngIf="editingData.images?.length < 3" class="w-48 h-48 border-4 border-dashed border-gray-700 rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-all group">
+          <i class="fas fa-plus text-2xl text-gray-600 group-hover:text-indigo-500"></i>
+          <input type="file" (change)="onAddImage($event)" multiple class="hidden" accept="image/*">
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
