@@ -8,7 +8,9 @@ using System.Threading.Tasks;
 
 namespace Shoe.Controllers
 {
-    public class BrandController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class BrandController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
 
@@ -17,131 +19,79 @@ namespace Shoe.Controllers
             _context = context;
         }
 
-        // ================== INDEX ==================
-        public async Task<IActionResult> Index()
+        // GET: api/Brand
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<BrandViewModel>>> GetBrands()
         {
-            // Lấy danh sách thương hiệu
             var brands = await _context.Brands
                 .Include(b => b.Products)
-                .OrderByDescending(b => b.Brand_Id) // Sắp xếp mới nhất lên đầu
-                .ToListAsync();
+                .OrderByDescending(b => b.Brand_Id)
+                .Select(b => new BrandViewModel
+                {
+                    Brand_Id = b.Brand_Id,
+                    Brand_Name = b.Brand_Name,
+                    ProductCount = b.Products != null ? b.Products.Count : 0
+                }).ToListAsync();
 
-            var vmList = brands.Select(b => new BrandViewModel
-            {
-                Brand_Id = b.Brand_Id,
-                Brand_Name = b.Brand_Name,
-                // Đếm số lượng sản phẩm để hiển thị thống kê
-                ProductCount = b.Products?.Count ?? 0
-            }).ToList();
-
-            return View(vmList);
+            return Ok(brands);
         }
 
-        // ================== CREATE (GET) ==================
-        [HttpGet]
-        public IActionResult Create()
-        {
-            return PartialView("_CreateBrandModal", new BrandViewModel());
-        }
-
-        // ================== CREATE (POST) ==================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(BrandViewModel vm)
-        {
-            if (!ModelState.IsValid)
-                return Json(new { success = false, message = "Dữ liệu không hợp lệ." });
-
-            // 1. Kiểm tra trùng tên
-            if (await _context.Brands.AnyAsync(b => b.Brand_Name == vm.Brand_Name))
-            {
-                return Json(new { success = false, message = $"Thương hiệu '{vm.Brand_Name}' đã tồn tại!" });
-            }
-
-            try
-            {
-                var brand = new Brand { Brand_Name = vm.Brand_Name };
-                _context.Brands.Add(brand);
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, message = "Thêm thương hiệu thành công!" });
-            }
-            catch (System.Exception ex)
-            {
-                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
-            }
-        }
-
-        // ================== EDIT (GET) ==================
-        [HttpGet]
-        public async Task<IActionResult> Edit(int id)
+        // GET: api/Brand/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<BrandViewModel>> GetBrand(int id)
         {
             var brand = await _context.Brands.FindAsync(id);
             if (brand == null) return NotFound();
 
-            var vm = new BrandViewModel { Brand_Id = brand.Brand_Id, Brand_Name = brand.Brand_Name };
-            return PartialView("_EditBrandModal", vm);
+            return Ok(new BrandViewModel { Brand_Id = brand.Brand_Id, Brand_Name = brand.Brand_Name });
         }
 
-        // ================== EDIT (POST) ==================
+        // POST: api/Brand
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(BrandViewModel vm)
+        public async Task<IActionResult> Create(BrandViewModel vm)
         {
-            if (!ModelState.IsValid)
-                return Json(new { success = false, message = "Dữ liệu không hợp lệ." });
+            if (await _context.Brands.AnyAsync(b => b.Brand_Name == vm.Brand_Name))
+                return BadRequest("Thương hiệu đã tồn tại!");
 
-            // 1. Kiểm tra trùng tên (Trùng tên NHƯNG khác ID)
-            bool isDuplicate = await _context.Brands.AnyAsync(b => b.Brand_Name == vm.Brand_Name && b.Brand_Id != vm.Brand_Id);
+            var brand = new Brand { Brand_Name = vm.Brand_Name };
+            _context.Brands.Add(brand);
+            await _context.SaveChangesAsync();
 
-            if (isDuplicate)
-            {
-                return Json(new { success = false, message = $"Thương hiệu '{vm.Brand_Name}' đã tồn tại ở mục khác!" });
-            }
-
-            var brand = await _context.Brands.FindAsync(vm.Brand_Id);
-            if (brand == null) return Json(new { success = false, message = "Không tìm thấy thương hiệu!" });
-
-            try
-            {
-                brand.Brand_Name = vm.Brand_Name;
-                _context.Brands.Update(brand);
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, message = "Cập nhật thương hiệu thành công!" });
-            }
-            catch (System.Exception ex)
-            {
-                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
-            }
+            return CreatedAtAction(nameof(GetBrand), new { id = brand.Brand_Id }, brand);
         }
 
-        // ================== DELETE (POST) ==================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
+        // PUT: api/Brand/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, BrandViewModel vm)
+        {
+            if (id != vm.Brand_Id) return BadRequest();
+
+            bool isDuplicate = await _context.Brands.AnyAsync(b => b.Brand_Name == vm.Brand_Name && b.Brand_Id != id);
+            if (isDuplicate) return BadRequest("Tên thương hiệu đã tồn tại!");
+
+            var brand = await _context.Brands.FindAsync(id);
+            if (brand == null) return NotFound();
+
+            brand.Brand_Name = vm.Brand_Name;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        // DELETE: api/Brand/5
+        [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             var brand = await _context.Brands.Include(b => b.Products).FirstOrDefaultAsync(b => b.Brand_Id == id);
             if (brand == null) return NotFound();
 
-            // Kiểm tra ràng buộc
             if (brand.Products != null && brand.Products.Any())
-            {
-                TempData["Error"] = $"Khong the xoa '{brand.Brand_Name}' vi dang co {brand.Products.Count} san pham.";
-                return RedirectToAction(nameof(Index));
-            }
+                return BadRequest("Không thể xóa thương hiệu đang có sản phẩm.");
 
-            try
-            {
-                _context.Brands.Remove(brand);
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "Xoa thuong hieu thanh cong!";
-            }
-            catch (System.Exception ex)
-            {
-                TempData["Error"] = "Loi khi xoa: " + ex.Message;
-            }
-            return RedirectToAction(nameof(Index));
+            _context.Brands.Remove(brand);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
         }
     }
 }

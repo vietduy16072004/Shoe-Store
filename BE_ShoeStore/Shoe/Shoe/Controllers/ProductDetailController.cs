@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shoe.Data;
 using Shoe.Enum;
@@ -7,6 +8,7 @@ using Shoe.ViewModels;
 
 namespace Shoe.Controllers
 {
+    //[Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     [ApiController]
     public class ProductDetailController : ControllerBase

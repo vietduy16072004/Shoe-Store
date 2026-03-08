@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http; // Thêm namespace này để dùng Session
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shoe.Data;
@@ -11,7 +11,9 @@ using System.Threading.Tasks;
 
 namespace Shoe.Controllers
 {
-    public class CartController : Controller
+    [Route("api/[controller]")]
+    [ApiController] // Sử dụng ApiController để tự động xử lý ModelState và trả về JSON
+    public class CartController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
         private readonly PriceService _priceService;
@@ -22,266 +24,203 @@ namespace Shoe.Controllers
             _priceService = priceService;
         }
 
-        // ===================== INDEX =====================
-        public async Task<IActionResult> Index()
+        // Hàm hỗ trợ lấy UserId từ Session (Đồng bộ với hệ thống đăng nhập của bạn)
+        private Guid? GetUserId()
         {
             var idStr = HttpContext.Session.GetString("UserId");
-            if (string.IsNullOrEmpty(idStr))
-                return RedirectToAction("Login", "Account");
-
-            var userId = Guid.Parse(idStr);
-
-            var cartItems = await _context.CartItems
-                .Include(c => c.ProductDetail)!.ThenInclude(pd => pd.Product)
-                .Include(c => c.ProductDetail)!.ThenInclude(pd => pd.Size)
-                .Include(c => c.ProductDetail)!.ThenInclude(pd => pd.Variant)
-                .Where(c => c.UserId == userId)
-                .ToListAsync();
-
-            // Cập nhật lại giá cho tất cả sản phẩm theo khuyến mãi mới nhất từ Admin
-            bool isPriceChanged = false;
-            foreach (var item in cartItems)
-            {
-                if (item.ProductDetail != null)
-                {
-                    // Gọi PriceService để lấy đơn giá tốt nhất tại THỜI ĐIỂM HIỆN TẠI
-                    decimal currentBestUnitPrice = _priceService.CalculateBestPrice(item.ProductDetail.Product_Id);
-
-                    // Tính lại tổng giá cho số lượng đang có trong giỏ
-                    decimal newTotalPrice = currentBestUnitPrice * item.Quantity;
-
-                    // Nếu giá có sự thay đổi (Admin vừa sửa khuyến mãi), cập nhật lại vào Database
-                    if (item.Price != newTotalPrice)
-                    {
-                        item.Price = newTotalPrice;
-                        _context.CartItems.Update(item);
-                        isPriceChanged = true;
-                    }
-                }
-            }
-
-            if (isPriceChanged)
-            {
-                await _context.SaveChangesAsync();
-            }
-
-            return View(cartItems);
+            return string.IsNullOrEmpty(idStr) ? null : Guid.Parse(idStr);
         }
 
-        // ===================== GET CART (AJAX) =====================
+        // ===================== 1. LẤY DANH SÁCH GIỎ HÀNG (GET) =====================
+        // Tích hợp PriceService để luôn trả về mức giá ưu đãi nhất hiện tại
         [HttpGet]
-        public async Task<IActionResult> GetCart(Guid userId)
+        public async Task<IActionResult> GetCartItems()
         {
-            var cartItems = await _context.CartItems
-                .Include(c => c.ProductDetail)!.ThenInclude(pd => pd.Product)
-                .Where(c => c.UserId == userId)
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized(new { message = "Vui lòng đăng nhập" });
+
+            var items = await _context.CartItems
+                .Include(c => c.ProductDetail!).ThenInclude(pd => pd.Product)
+                .Include(c => c.ProductDetail!).ThenInclude(pd => pd.Size)
+                .Include(c => c.ProductDetail!).ThenInclude(pd => pd.Variant)
+                .Where(c => c.UserId == userId.Value)
                 .ToListAsync();
 
-            return Json(cartItems.Select(c => new
-            {
-                c.Cart_Id,
-                ProductName = c.ProductDetail?.Product?.Product_Name,
-                c.Quantity,
-                c.Price
-            }));
-        }
-
-        // ===================== GET PRODUCT OPTIONS (AJAX) =====================
-        [HttpGet]
-        public async Task<IActionResult> GetProductOptions(int productId)
-        {
-            var details = await _context.ProductDetails
-                .Include(pd => pd.Size)
-                .Include(pd => pd.Variant)
-                .Where(pd => pd.Product_Id == productId)
-                .Select(pd => new
+            var result = items.Select(c => {
+                decimal currentUnitPrice = _priceService.CalculateBestPrice(c.ProductDetail.Product_Id);
+                return new
                 {
-                    pd.ProductDetail_Id,
-                    Size_Id = pd.Size != null ? (int?)pd.Size.Size_Id : null,
-                    Size_Name = pd.Size != null ? pd.Size.Size_Name : null,
-                    // [SỬA] Lấy Quantity trực tiếp từ ProductDetail
-                    Stock = pd.Quantity,
-                    Variants_Id = pd.Variant != null ? (int?)pd.Variant.Variants_Id : null,
-                    Variants_Name = pd.Variant != null ? pd.Variant.Variants_Name : null
-                })
-                .ToListAsync();
+                    cart_Id = c.Cart_Id,
+                    productDetail_Id = c.ProductDetail_Id,
+                    productId = c.ProductDetail.Product_Id, // BẮT BUỘC PHẢI CÓ DÒNG NÀY
+                    productName = c.ProductDetail.Product.Product_Name,
+                    imageUrl = c.ProductDetail.Product.ImageUrl,
+                    sizeName = c.ProductDetail.Size.Size_Name,
+                    variantName = c.ProductDetail.Variant.Variants_Name,
+                    quantity = c.Quantity,
+                    unitPrice = currentUnitPrice,
+                    totalPrice = currentUnitPrice * c.Quantity,
+                    stock = c.ProductDetail.Quantity
+                };
+            });
 
-            return Json(new { productDetails = details });
+            return Ok(result);
         }
 
-        // ===================== ADD TO CART WITH OPTIONS (AJAX POST) =====================
-        [HttpPost]
-        public async Task<IActionResult> AddToCartWithOptions(int productId, int? selectedSizeId, int? selectedVariantId, int quantity)
+        // ===================== 2. THÊM SẢN PHẨM VÀO GIỎ (POST) =====================
+        // Xử lý logic thêm mới hoặc cộng dồn số lượng nếu sản phẩm đã có trong giỏ
+        [HttpPost("add")]
+        public async Task<IActionResult> AddToCart([FromBody] AddToCartRequest req)
         {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-            if (string.IsNullOrEmpty(userIdStr))
-                return Json(new { success = false, message = "Bạn cần đăng nhập." });
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized(new { message = "Vui lòng đăng nhập" });
 
-            var userId = Guid.Parse(userIdStr);
+            // Tìm cấu hình chi tiết sản phẩm (Size + Màu)
+            var detail = await _context.ProductDetails
+                .FirstOrDefaultAsync(pd => pd.Product_Id == req.ProductId &&
+                                         pd.Size_Id == req.SizeId &&
+                                         pd.Variants_Id == req.VariantId);
 
-            var productDetail = await _context.ProductDetails
-                .Include(pd => pd.Product) // Cần Product để lấy ID tính giá
-                .FirstOrDefaultAsync(pd =>
-                    pd.Product_Id == productId &&
-                    (selectedSizeId == null || pd.Size_Id == selectedSizeId) &&
-                    (selectedVariantId == null || pd.Variants_Id == selectedVariantId)
-                );
+            if (detail == null) return BadRequest(new { message = "Tùy chọn sản phẩm không tồn tại" });
+            if (detail.Quantity < req.Quantity) return BadRequest(new { message = "Số lượng trong kho không đủ" });
 
-            if (productDetail == null)
-                return Json(new { success = false, message = "Sản phẩm không hợp lệ." });
+            var existingItem = await _context.CartItems
+                .FirstOrDefaultAsync(c => c.UserId == userId.Value && c.ProductDetail_Id == detail.ProductDetail_Id);
 
-            if (quantity > productDetail.Quantity)
-                return Json(new { success = false, message = $"Chỉ còn {productDetail.Quantity} sản phẩm." });
-
-            // [QUAN TRỌNG] TÍNH GIÁ BÁN THỰC TẾ TẠI THỜI ĐIỂM MUA
-            // Không dùng Product.Price hay Discount tĩnh nữa
-            decimal unitPriceBest = _priceService.CalculateBestPrice(productDetail.Product_Id);
-
-            var existing = await _context.CartItems
-                .FirstOrDefaultAsync(c => c.ProductDetail_Id == productDetail.ProductDetail_Id && c.UserId == userId);
-
-            if (existing != null)
+            if (existingItem != null)
             {
-                if (existing.Quantity + quantity > productDetail.Quantity)
-                    return Json(new { success = false, message = "Vượt quá tồn kho." });
+                // Nếu đã có trong giỏ thì cộng dồn số lượng
+                existingItem.Quantity += req.Quantity;
+                if (existingItem.Quantity > detail.Quantity) existingItem.Quantity = detail.Quantity;
 
-                existing.Quantity += quantity;
-                // Cập nhật lại giá cho toàn bộ số lượng (Giá mới nhất áp dụng cho cả cũ)
-                existing.Price = unitPriceBest * existing.Quantity;
-                _context.CartItems.Update(existing);
+                decimal unitPrice = _priceService.CalculateBestPrice(detail.Product_Id);
+                existingItem.Price = unitPrice * existingItem.Quantity;
+                _context.CartItems.Update(existingItem);
             }
             else
             {
-                _context.CartItems.Add(new CartItem
+                // Nếu chưa có thì tạo mới CartItem
+                decimal unitPrice = _priceService.CalculateBestPrice(detail.Product_Id);
+                var newItem = new CartItem
                 {
-                    ProductDetail_Id = productDetail.ProductDetail_Id,
-                    Quantity = quantity,
-                    Price = unitPriceBest * quantity, // Đơn giá tốt nhất * Số lượng
-                    UserId = userId,
+                    UserId = userId.Value,
+                    ProductDetail_Id = detail.ProductDetail_Id,
+                    Quantity = req.Quantity,
+                    Price = unitPrice * req.Quantity,
                     DateCreated = DateTime.Now
-                });
+                };
+                _context.CartItems.Add(newItem);
             }
 
             await _context.SaveChangesAsync();
-
-            return Json(new
-            {
-                success = true,
-                message = $"Đã thêm <b>{productDetail.Product.Product_Name}</b> vào giỏ!"
-            });
+            return Ok(new { success = true, message = "Đã thêm sản phẩm vào giỏ hàng thành công!" });
         }
 
-        // ===================== EDIT (GET) =====================
-        [HttpGet]
-        public async Task<IActionResult> Edit(int id)
+        // ===================== 3. CẬP NHẬT SỐ LƯỢNG (PUT) =====================
+        // API dùng để lưu thay đổi khi người dùng nhấn nút +/- ở trang giỏ hàng
+        [HttpPut("update-quantity")]
+        public async Task<IActionResult> UpdateQuantity([FromBody] UpdateQtyRequest req)
         {
             var item = await _context.CartItems
-                .Include(c => c.ProductDetail)!.ThenInclude(pd => pd.Product)
-                .Include(c => c.ProductDetail)!.ThenInclude(pd => pd.Size)
-                .Include(c => c.ProductDetail)!.ThenInclude(pd => pd.Variant)
-                .FirstOrDefaultAsync(c => c.Cart_Id == id);
+                .Include(c => c.ProductDetail)
+                .FirstOrDefaultAsync(c => c.Cart_Id == req.CartId);
 
-            if (item == null) return NotFound();
+            if (item == null) return NotFound(new { message = "Không tìm thấy sản phẩm trong giỏ" });
 
-            var productId = item.ProductDetail!.Product_Id;
+            // Kiểm tra tồn kho thực tế trước khi lưu
+            if (req.Quantity > item.ProductDetail.Quantity)
+                return BadRequest(new { message = "Vượt quá số lượng tồn kho" });
 
-            ViewBag.Sizes = await _context.ProductDetails
-                .Include(pd => pd.Size)
-                .Where(pd => pd.Product_Id == productId && pd.Size != null)
-                .Select(pd => pd.Size!)
-                .Distinct()
-                .OrderBy(s => s.Size_Name)
-                .ToListAsync();
+            item.Quantity = req.Quantity;
 
-            ViewBag.Variants = await _context.ProductDetails
-                .Include(pd => pd.Variant)
-                .Where(pd => pd.Product_Id == productId && pd.Variant != null)
-                .Select(pd => pd.Variant!)
-                .Distinct()
-                .ToListAsync();
-
-            ViewBag.ProductDetails = await _context.ProductDetails
-                .Where(pd => pd.Product_Id == productId)
-                .Select(pd => new
-                {
-                    pd.Size_Id,
-                    pd.Variants_Id,
-                    // [THÊM] Có thể truyền thêm stock xuống view nếu cần xử lý JS
-                    Stock = pd.Quantity
-                })
-                .ToListAsync();
-
-            return View(item);
-        }
-
-        // ===================== EDIT (POST) =====================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, int selectedSizeId, int selectedVariantId, int quantity)
-        {
-            var item = await _context.CartItems
-                .Include(c => c.ProductDetail)!.ThenInclude(pd => pd.Product)
-                .FirstOrDefaultAsync(c => c.Cart_Id == id);
-
-            if (item == null) return NotFound();
-
-            var productId = item.ProductDetail!.Product_Id;
-            var newDetail = await _context.ProductDetails
-                .FirstOrDefaultAsync(pd =>
-                    pd.Product_Id == productId &&
-                    pd.Size_Id == selectedSizeId &&
-                    pd.Variants_Id == selectedVariantId);
-
-            if (newDetail == null || quantity > newDetail.Quantity)
-            {
-                TempData["Error"] = "San pham khong du so luong.";
-                return RedirectToAction(nameof(Edit), new { id });
-            }
-
-            // [QUAN TRỌNG] Tính lại giá khi cập nhật giỏ
-            decimal unitPriceBest = _priceService.CalculateBestPrice(productId);
-
-            item.ProductDetail_Id = newDetail.ProductDetail_Id;
-            item.Quantity = quantity;
-            item.Price = unitPriceBest * quantity; // Cập nhật giá mới
+            // Tính lại tổng giá trị item dựa trên giá khuyến mãi mới nhất
+            decimal currentUnitPrice = _priceService.CalculateBestPrice(item.ProductDetail.Product_Id);
+            item.Price = currentUnitPrice * req.Quantity;
 
             _context.CartItems.Update(item);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Cap nhat gio hang thanh cong!";
-            return RedirectToAction(nameof(Edit), new { id = item.Cart_Id });
+            return Ok(new { success = true, newTotalPrice = item.Price });
         }
 
-        // ===================== DELETE =====================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int id)
+        // ===================== 4. XÓA SẢN PHẨM (DELETE) =====================
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> RemoveFromCart(int id)
         {
             var item = await _context.CartItems.FindAsync(id);
             if (item == null) return NotFound();
 
             _context.CartItems.Remove(item);
             await _context.SaveChangesAsync();
-            TempData["Success"] = "Xoa san pham khoi gio hang thanh cong!";
-            return RedirectToAction("Index", "Cart");
+            return Ok(new { success = true, message = "Đã xóa sản phẩm khỏi giỏ hàng" });
         }
 
-        // ===================== SAVE CART =====================
-        [HttpPost]
-        public async Task<IActionResult> SaveCart(Guid userId, List<CartItem> cartItems)
+        // ===================== LẤY TÙY CHỌN SẢN PHẨM (Cho Quick Add) =====================
+        [HttpGet("GetProductOptions")]
+        public async Task<IActionResult> GetProductOptions(int productId)
         {
-            var existing = await _context.CartItems.Where(c => c.UserId == userId).ToListAsync();
-            _context.CartItems.RemoveRange(existing);
+            var productDetails = await _context.ProductDetails
+                .Include(pd => pd.Size)
+                .Include(pd => pd.Variant)
+                .Where(pd => pd.Product_Id == productId)
+                .Select(pd => new {
+                    productDetail_Id = pd.ProductDetail_Id,
+                    size_Id = pd.Size_Id,
+                    size_Name = pd.Size!.Size_Name,
+                    variants_Id = pd.Variants_Id,
+                    variants_Name = pd.Variant!.Variants_Name,
+                    stock = pd.Quantity
+                })
+                .ToListAsync();
 
-            foreach (var item in cartItems)
-            {
-                item.UserId = userId;
-                item.DateCreated = DateTime.Now;
-                _context.CartItems.Add(item);
-            }
+            return Ok(new { productDetails });
+        }
+
+        // ===================== CẬP NHẬT CẤU HÌNH (Size/Màu) =====================
+        [HttpPut("update-options")]
+        public async Task<IActionResult> UpdateOptions([FromBody] UpdateOptionsRequest req)
+        {
+            var cartItem = await _context.CartItems.FindAsync(req.CartId);
+            if (cartItem == null) return NotFound();
+
+            // Tìm ProductDetail_Id mới dựa trên Size và Variant khách vừa chọn lại
+            var newDetail = await _context.ProductDetails
+                .FirstOrDefaultAsync(pd => pd.Product_Id == req.ProductId &&
+                                         pd.Size_Id == req.SizeId &&
+                                         pd.Variants_Id == req.VariantId);
+
+            if (newDetail == null) return BadRequest(new { message = "Cấu hình này hiện không có sẵn" });
+
+            // Cập nhật ID chi tiết mới và tính lại giá theo PriceService
+            cartItem.ProductDetail_Id = newDetail.ProductDetail_Id;
+            decimal unitPrice = _priceService.CalculateBestPrice(newDetail.Product_Id);
+            cartItem.Price = unitPrice * cartItem.Quantity;
 
             await _context.SaveChangesAsync();
-            return Json(new { success = true, message = "Lưu giỏ hàng thành công." });
+            return Ok(new { success = true });
         }
+        public class UpdateOptionsRequest
+        {
+            public int CartId { get; set; }
+            public int ProductId { get; set; }
+            public int SizeId { get; set; }
+            public int VariantId { get; set; }
+        }
+    }
+
+
+    // Các lớp DTO để nhận dữ liệu từ Angular
+    public class AddToCartRequest
+    {
+        public int ProductId { get; set; }
+        public int SizeId { get; set; }
+        public int VariantId { get; set; }
+        public int Quantity { get; set; }
+    }
+
+    public class UpdateQtyRequest
+    {
+        public int CartId { get; set; }
+        public int Quantity { get; set; }
     }
 }

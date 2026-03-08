@@ -121,7 +121,7 @@ export class ProductDetailComponent implements OnInit {
   }
 
   onEdit(id: number) {
-    this.router.navigate(['/product-detail/edit', id]);
+    this.router.navigate(['/admin/product-detail/edit', id]);
   }
   
   onDelete(id: number) {

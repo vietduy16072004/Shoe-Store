@@ -1,48 +1,64 @@
-<div class="fixed inset-0 z-[110] flex items-center justify-center p-6">
+<div class="fixed inset-0 z-[110] flex items-center justify-center p-6 animate-in fade-in duration-300">
   <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" (click)="close.emit()"></div>
-  <div class="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl z-10 p-10 animate-in zoom-in duration-500 overflow-hidden">
-    <div class="text-center mb-8">
-        <h3 class="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Lựa chọn cấu hình</h3>
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{{product.product_Name}}</p>
+  
+  <div class="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl z-10 p-12 relative animate-in zoom-in duration-500 overflow-hidden">
+    <button (click)="close.emit()" class="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition-colors">
+        <i class="fas fa-times text-xl"></i>
+    </button>
+
+    <div class="text-center mb-10">
+        <h3 class="text-3xl font-black text-slate-900 uppercase tracking-tighter italic">Lựa chọn cấu hình</h3>
+        <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.3em] mt-3">
+            {{ product.product_Name }}
+        </p>
     </div>
 
-    <div class="space-y-8">
+    <div class="space-y-10">
       <div>
-        <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-3 block">Màu sắc sản phẩm</label>
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 block italic">1. Màu sắc sản phẩm</label>
         <div class="flex flex-wrap gap-3">
-          <button *ngFor="let v of uniqueVariants" (click)="selectedVariantId = v.variants_Id"
-                  [class]="selectedVariantId === v.variants_Id ? 'bg-slate-900 text-white shadow-xl' : 'bg-slate-50 text-slate-400'"
-                  class="px-6 py-3 rounded-xl font-black text-[10px] uppercase transition-all">
-            {{v.variants_Name}}
+          <button *ngFor="let v of uniqueVariants" (click)="selectedVariantId = v.variants_Id; selectedSizeId = null"
+                  [ngClass]="selectedVariantId === v.variants_Id ? 'bg-slate-900 text-white shadow-xl scale-105' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'"
+                  class="px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase transition-all">
+            {{ v.variants_Name }}
           </button>
         </div>
       </div>
 
-      <div>
-        <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-3 block">Chọn kích cỡ (Size)</label>
+      <div *ngIf="selectedVariantId" class="animate-in slide-in-from-top-2 duration-500">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 block italic">2. Kích cỡ (Size)</label>
         <div class="flex flex-wrap gap-3">
           <button *ngFor="let s of uniqueSizes" (click)="selectSize(s.size_Id)"
-                  [class]="selectedSizeId === s.size_Id ? 'bg-indigo-600 text-white shadow-indigo-200 shadow-lg' : 'bg-slate-50 text-slate-400'"
-                  class="w-12 h-12 flex items-center justify-center rounded-xl font-black text-xs transition-all border-2 border-transparent">
-            {{s.size_Name}}
+                  [ngClass]="selectedSizeId === s.size_Id ? 'bg-indigo-600 text-white shadow-indigo-200 shadow-lg scale-110' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'"
+                  class="w-14 h-14 flex items-center justify-center rounded-2xl font-black text-xs transition-all border-2 border-transparent">
+            {{ s.size_Name }}
           </button>
         </div>
       </div>
 
-      <div *ngIf="selectedSizeId">
-        <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
-           <span class="text-[10px] font-black uppercase text-slate-400">Số lượng mua</span>
-           <div class="flex items-center gap-4">
-             <button (click)="quantity > 1 && quantity = quantity - 1" class="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center font-black">-</button>
-             <span class="font-black text-slate-900">{{quantity}}</span>
-             <button (click)="quantity < maxStock && quantity = quantity + 1" class="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center font-black">+</button>
+      <div *ngIf="selectedSizeId" class="animate-in slide-in-from-top-4 duration-500">
+        <div class="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+           <div class="flex flex-col gap-1">
+               <span class="text-[9px] font-black uppercase text-slate-400">Số lượng mua</span>
+               <div class="flex items-center gap-5 bg-white rounded-xl p-1 border border-slate-200">
+                 <button (click)="quantity > 1 && quantity = quantity - 1" class="w-8 h-8 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-indigo-600 transition-all font-black">-</button>
+                 <span class="font-black text-slate-900 text-sm w-4 text-center">{{ quantity }}</span>
+                 <button (click)="quantity < maxStock && quantity = quantity + 1" class="w-8 h-8 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-indigo-600 transition-all font-black">+</button>
+               </div>
+           </div>
+           <div class="text-right">
+               <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Hiện có</span>
+               <span [ngClass]="maxStock > 0 ? 'text-green-500' : 'text-red-500'" class="text-xs font-black italic">
+                   {{ maxStock > 0 ? maxStock + ' Đôi sẵn sàng' : 'Tạm hết hàng' }}
+               </span>
            </div>
         </div>
-        <p class="text-right text-[9px] font-bold text-green-500 uppercase mt-2">Hiện có: {{maxStock}} sản phẩm</p>
       </div>
 
-      <button (click)="confirmAdd()" class="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-indigo-600 transition-all">
-        Xác nhận thêm vào giỏ
+      <button (click)="confirmAdd()" 
+              [disabled]="!selectedSizeId || maxStock === 0"
+              class="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl hover:bg-indigo-600 transition-all transform active:scale-95 disabled:bg-slate-100 disabled:text-slate-300">
+        <i class="fas fa-shopping-bag mr-3 text-[10px]"></i> XÁC NHẬN THÊM VÀO GIỎ
       </button>
     </div>
   </div>

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shoe.Data;
 using Shoe.Enum;
@@ -10,6 +11,7 @@ using System.Text.Json.Serialization;
 
 namespace Shoe.Controllers
 {
+    //[Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     [ApiController] // Tự động kiểm tra ModelState và hỗ trợ API
     public class ProductController : ControllerBase // Dùng ControllerBase cho API chuyên nghiệp
@@ -323,6 +325,74 @@ namespace Shoe.Controllers
                 .ToListAsync();
 
             return Ok(results);
+        }
+
+        [HttpGet("detail/{id}")]
+        public async Task<IActionResult> GetProductDetail(int id)
+        {
+            var product = await _context.Products
+                .Include(p => p.Brand)
+                .Include(p => p.Category)
+                .Include(p => p.ProductDetails!)
+                    .ThenInclude(pd => pd.Variant)
+                .Include(p => p.ProductDetails!)
+                    .ThenInclude(pd => pd.Size)
+                .Include(p => p.ProductDetails!)
+                    .ThenInclude(pd => pd.ProductImages)
+                .FirstOrDefaultAsync(p => p.Product_Id == id);
+
+            if (product == null) return NotFound(new { success = false, message = "Không tìm thấy sản phẩm" });
+
+            decimal bestPrice = _priceService.CalculateBestPrice(product.Product_Id);
+            int realDiscount = (product.Price > 0) ? (int)((product.Price - bestPrice) / product.Price * 100) : 0;
+
+            // --- XỬ LÝ ẢNH CHI TIẾT (Từ folder DB9 qua /detailimages/) ---
+            const string DETAIL_VIRTUAL_PATH = "/detailimages/"; // Map từ images/DB9
+            const int MAX_THUMBNAILS = 5;
+
+            // Gom toàn bộ ảnh chi tiết từ các cấu hình và gắn prefix đúng
+            var detailImages = product.ProductDetails
+                ?.SelectMany(pd => pd.ProductImages?.OrderBy(pi => pi.DisplayOrder) ?? Enumerable.Empty<Shoe.Models.ProductImage>())
+                .OrderBy(img => img.DisplayOrder)
+                .Select(img => DETAIL_VIRTUAL_PATH + img.ImagePath.TrimStart('/'))
+                .Distinct()
+                .Take(MAX_THUMBNAILS)
+                .ToList() ?? new List<string>();
+
+            // Xử lý ảnh đại diện (Nếu không có ảnh chi tiết thì dùng cái này)
+            string mainProductImg = !string.IsNullOrEmpty(product.ImageUrl)
+                ? product.ImageUrl.Replace("~/", "/")
+                : "/images/no-image.png";
+
+            // Nếu gallery trống, đưa ảnh chính vào làm ảnh duy nhất
+            if (!detailImages.Any()) detailImages.Add(mainProductImg);
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    product_Id = product.Product_Id,
+                    product_Name = product.Product_Name,
+                    price = product.Price,
+                    finalPrice = bestPrice,
+                    discount = realDiscount,
+                    description = product.Description,
+                    status = product.Status,
+                    brand_Name = product.Brand?.Brand_Name,
+                    category_Name = product.Category?.Category_Name,
+                    displayImages = detailImages, // Danh sách đường dẫn đã có folder đúng
+                    mainImageUrl = detailImages.FirstOrDefault() ?? mainProductImg,
+                    availableSizes = product.ProductDetails?.Select(pd => pd.Size).DistinctBy(s => s?.Size_Id).OrderBy(s => s?.Size_Name),
+                    availableVariants = product.ProductDetails?.Select(pd => pd.Variant).DistinctBy(v => v?.Variants_Id),
+                    detailsLookup = product.ProductDetails?.Select(pd => new {
+                        pd.ProductDetail_Id,
+                        pd.Size_Id,
+                        pd.Variants_Id,
+                        pd.Quantity
+                    })
+                }
+            });
         }
     }
 }

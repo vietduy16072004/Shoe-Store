@@ -43,5 +43,7 @@ export class ProductService {
     return this.http.get<any>(`${this.apiUrl}/Categories`); // Gọi đúng https://localhost:7168/api/Product/Categories
   }
 
-  
+  getProductDetail(id: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/detail/${id}`);
+  }  
 }

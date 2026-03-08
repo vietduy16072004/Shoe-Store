@@ -1,0 +1,125 @@
+<div class="container mx-auto p-6 lg:p-20 animate-in fade-in duration-700">
+    <div class="flex items-center justify-between mb-12">
+        <h1 class="text-5xl font-black text-slate-900 uppercase tracking-tighter italic">Giỏ hàng của bạn</h1>
+        <div class="px-6 py-2 bg-slate-100 rounded-full border border-slate-200">
+            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ items.length }} Sản phẩm</span>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-16" *ngIf="items.length > 0; else emptyCart">
+        
+        <div class="lg:col-span-2 space-y-6">
+            <div *ngFor="let item of items" 
+                 class="bg-white p-8 rounded-[3.5rem] border border-slate-100 flex items-center gap-8 shadow-sm hover:shadow-xl transition-all group relative">
+                
+                <div class="w-32 h-32 bg-slate-50 rounded-[2rem] overflow-hidden flex-shrink-0 flex items-center justify-center p-2 border border-slate-50">
+                    <img [src]="item.imageUrl" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500">
+                </div>
+
+                <div class="flex-1">
+                    <span class="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-1 block">
+                        {{ item.variantName }} / Size {{ item.sizeName }}
+                    </span>
+                    <h3 class="text-xl font-black text-slate-900 uppercase tracking-tight italic line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                        {{ item.productName }}
+                    </h3>
+                    <p class="text-sm font-bold text-slate-300 mt-2">{{ item.unitPrice | number:'1.0-0' }}₫</p>
+                </div>
+
+                <div class="flex items-center bg-slate-50 rounded-2xl p-1.5 border border-slate-100 shadow-inner">
+                    <button (click)="changeQuantity(item, -1)" 
+                            class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors">
+                        <i class="fas fa-minus text-[10px]"></i>
+                    </button>
+                    <span class="w-10 text-center font-black text-sm">{{ item.quantity }}</span>
+                    <button (click)="changeQuantity(item, 1)" 
+                            class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors">
+                        <i class="fas fa-plus text-[10px]"></i>
+                    </button>
+                </div>
+
+                <div class="text-right w-40">
+                    <p class="text-xl font-black text-slate-900 italic mb-2">{{ item.totalPrice | number:'1.0-0' }}đ</p>
+                    <div class="flex items-center justify-end gap-3">
+                        <button (click)="openEditOptions(item)" 
+                                class="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:underline flex items-center gap-1.5 transition-all">
+                            <i class="fas fa-pen-nib text-[8px]"></i> Chỉnh sửa
+                        </button>
+                        <span class="text-slate-200 text-xs">|</span>
+                        <button (click)="removeItem(item.cart_Id)" 
+                                class="text-[9px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">
+                            Gỡ bỏ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 p-12 rounded-[4rem] text-white h-fit shadow-2xl relative overflow-hidden shadow-indigo-100">
+            <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
+            
+            <div class="relative z-10">
+                <h2 class="text-2xl font-black uppercase italic mb-10 tracking-widest flex items-center gap-3">
+                    <i class="fas fa-file-invoice-dollar text-indigo-500"></i> Tóm tắt đơn hàng
+                </h2>
+                
+                <div class="space-y-6 mb-12 border-b border-white/5 pb-10">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Số lượng sản phẩm</span>
+                        <span class="font-black text-sm italic">{{ items.length }} sản phẩm</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tổng tiền hàng</span>
+                        <span class="font-black text-sm">{{ totalAmount | number:'1.0-0' }}₫</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Ưu đãi thành viên</span>
+                        <span class="text-green-400 font-black text-xs uppercase italic">Áp dụng tự động</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col mb-10">
+                    <span class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-3 italic">Tổng cộng thanh toán</span>
+                    <span class="text-6xl font-black text-white italic tracking-tighter leading-none">
+                        {{ totalAmount | number:'1.0-0' }}<span class="text-2xl ml-1">₫</span>
+                    </span>
+                </div>
+
+                <button routerLink="/checkout" 
+                        class="w-full bg-indigo-600 py-6 rounded-3xl font-black text-[11px] uppercase tracking-[0.3em] shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-all transform active:scale-95 flex items-center justify-center gap-3 group">
+                    TIẾN HÀNH ĐẶT HÀNG <i class="fas fa-chevron-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+                </button>
+                
+                <div class="flex items-center justify-center gap-4 mt-8 opacity-30">
+                    <i class="fab fa-cc-visa text-xl"></i>
+                    <i class="fab fa-cc-mastercard text-xl"></i>
+                    <i class="fas fa-shield-check text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ng-template #emptyCart>
+        <div class="text-center py-40 bg-white rounded-[4rem] border border-slate-50 shadow-sm animate-in zoom-in duration-500">
+            <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 text-slate-200">
+                <i class="fas fa-shopping-cart text-3xl rotate-12"></i>
+            </div>
+            <h2 class="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Giỏ hàng đang trống</h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-4">Hãy lấp đầy giỏ hàng bằng những đôi giày tuyệt vời nhất</p>
+            <button routerLink="/home" 
+                    class="mt-12 text-indigo-600 font-black text-[11px] uppercase tracking-[0.4em] border-b-2 border-indigo-600 pb-2 hover:text-slate-900 hover:border-slate-900 transition-all">
+                Quay lại cửa hàng
+            </button>
+        </div>
+    </ng-template>
+
+    <div *ngIf="isLoading" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
+        <div class="w-14 h-14 border-[6px] border-slate-100 border-t-indigo-600 rounded-full animate-spin shadow-inner"></div>
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">Đang cập nhật kho giày...</span>
+    </div>
+</div>
+
+<app-add-to-cart *ngIf="editingProduct" 
+                 [product]="editingProduct" 
+                 (close)="editingProduct = null; loadCart()">
+</app-add-to-cart>

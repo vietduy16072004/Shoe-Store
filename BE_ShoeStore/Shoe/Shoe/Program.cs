@@ -43,9 +43,19 @@ builder.Services.AddSession(options =>
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Account/Login";
-        options.LogoutPath = "/Account/Logout";
-        options.AccessDeniedPath = "/Account/Login";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.None; // Hỗ trợ chạy khác Port (4200 vs 7168)
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+
+        // ĐÂY LÀ ĐIỂM MẤU CHỐT: Trả về lỗi thay vì Redirect
+        options.Events.OnRedirectToLogin = context => {
+            context.Response.StatusCode = 401; // Unauthorized
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context => {
+            context.Response.StatusCode = 403; // Forbidden
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddAuthentication()

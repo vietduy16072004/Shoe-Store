@@ -26,6 +26,14 @@
     <div *ngIf="filters.brandId || filters.categoryId" class="ml-auto">
         <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest">Đang áp dụng bộ lọc</span>
     </div>
+
+    <div class="flex items-center ml-auto">
+      <button routerLink="/uu-dai" 
+              class="bg-gradient-to-r from-red-500 to-orange-500 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-100 hover:shadow-red-200 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 animate-pulse">
+          <i class="fas fa-fire text-sm"></i>
+          Săn Deal Hot
+      </button>
+    </div>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
@@ -60,7 +68,7 @@
       </div>
 
       <div class="grid grid-cols-2 gap-4">
-        <button [routerLink]="['/admin/product-detail', item.product_Id]" 
+        <button [routerLink]="['/product', item.product_Id]" 
                 class="bg-slate-50 text-slate-900 py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm">
             Chi tiết
         </button>

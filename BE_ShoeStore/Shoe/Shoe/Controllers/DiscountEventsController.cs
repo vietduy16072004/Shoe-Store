@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Shoe.Controllers;
 using Shoe.Data;
 using Shoe.Models;
 using Shoe.ViewModels;
@@ -11,19 +12,17 @@ using System.Threading.Tasks;
 
 namespace Shoe.Controllers
 {
-    public class DiscountEventsController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class DiscountEventsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        public DiscountEventsController(ApplicationDbContext context) => _context = context;
 
-        public DiscountEventsController(ApplicationDbContext context)
+        // GET: api/DiscountEvents
+        [HttpGet]
+        public async Task<IActionResult> GetEvents()
         {
-            _context = context;
-        }
-
-        // ================== INDEX ==================
-        public async Task<IActionResult> Index()
-        {
-            // Lấy danh sách sự kiện và đếm số lượng sản phẩm trong mỗi sự kiện
             var events = await _context.DiscountEvents
                 .Include(e => e.EventDetails)
                 .OrderByDescending(e => e.StartDate)
@@ -36,234 +35,116 @@ namespace Shoe.Controllers
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     IsActive = e.IsActive,
-                    ProductCount = e.EventDetails.Count(), // Đếm số sản phẩm tham gia
+                    ProductCount = e.EventDetails.Count(),
                     StatusLabel = (e.IsActive && e.StartDate <= DateTime.Now && e.EndDate >= DateTime.Now)
                                    ? "Đang diễn ra"
                                    : (!e.IsActive ? "Đã tắt" : (e.EndDate < DateTime.Now ? "Đã kết thúc" : "Sắp diễn ra"))
-                })
+                }).ToListAsync();
+            return Ok(events);
+        }
+
+        // GET: api/DiscountEvents/products-lookup (Dùng cho dropdown chọn sản phẩm)
+        [HttpGet("products-lookup")]
+        public async Task<IActionResult> GetProductsLookup()
+        {
+            var products = await _context.Products
+                .Select(p => new { p.Product_Id, p.Product_Name, p.Price })
                 .ToListAsync();
-
-            return View(events);
+            return Ok(products);
         }
 
-        // ================== CREATE (GET) ==================
-        [HttpGet]
-        public IActionResult Create()
-        {
-            var vm = new DiscountEventViewModel();
-
-            // Load danh sách sản phẩm để hiển thị Dropdown chọn nhiều (MultiSelect)
-            // Chỉ lấy Tên và ID để nhẹ dữ liệu
-            var products = _context.Products
-                .Select(p => new { p.Product_Id, DisplayName = $"{p.Product_Name} - {p.Price:N0}đ" })
-                .ToList();
-
-            vm.ProductList = new MultiSelectList(products, "Product_Id", "DisplayName");
-
-            return View(vm);
-        }
-
-        // ================== CREATE (POST) ==================
+        // POST: api/DiscountEvents
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(DiscountEventViewModel vm)
+        public async Task<IActionResult> Create([FromBody] DiscountEventViewModel vm)
         {
-            // --- [THÊM MỚI] VALIDATION LOGIC NGHIỆP VỤ ---
-            // Nếu chọn Loại 1 (Phần trăm) mà nhập > 100 thì báo lỗi ngay
             if (vm.DiscountType == 1 && vm.DiscountValue > 100)
+                return BadRequest(new { message = "Phần trăm giảm giá tối đa là 100%" });
+
+            var discountEvent = new DiscountEvent
             {
-                ModelState.AddModelError("DiscountValue", "Loại giảm giá là Phần trăm (%) thì giá trị tối đa là 100.");
-            }
-
-            // Kiểm tra số âm (đề phòng)
-            if (vm.DiscountValue < 0)
-            {
-                ModelState.AddModelError("DiscountValue", "Giá trị giảm không được là số âm.");
-            }
-            // ----------------------------------------------
-
-            if (ModelState.IsValid)
-            {
-                // 1. Lưu thông tin sự kiện
-                var discountEvent = new DiscountEvent
-                {
-                    EventName = vm.EventName,
-                    Description = vm.Description,
-                    DiscountValue = vm.DiscountValue,
-                    DiscountType = vm.DiscountType,
-                    StartDate = vm.StartDate,
-                    EndDate = vm.EndDate,
-                    IsActive = vm.IsActive
-                };
-
-                _context.DiscountEvents.Add(discountEvent);
-                await _context.SaveChangesAsync();
-
-                // 2. Lưu danh sách sản phẩm
-                if (vm.SelectedProductIds != null && vm.SelectedProductIds.Any())
-                {
-                    var details = new List<EventDetail>();
-                    foreach (var prodId in vm.SelectedProductIds)
-                    {
-                        details.Add(new EventDetail
-                        {
-                            EventId = discountEvent.Id,
-                            ProductID = prodId,
-                            Status = true
-                        });
-                    }
-                    _context.EventDetails.AddRange(details);
-                    await _context.SaveChangesAsync();
-                }
-
-                TempData["Success"] = "Tao chuong trinh giam gia thanh cong!";
-                return RedirectToAction(nameof(Index));
-            }
-
-            // Nếu lỗi, load lại danh sách sản phẩm
-            var products = _context.Products
-                .Select(p => new { p.Product_Id, DisplayName = $"{p.Product_Name} - {p.Price:N0}đ" })
-                .ToList();
-            vm.ProductList = new MultiSelectList(products, "Product_Id", "DisplayName", vm.SelectedProductIds);
-
-            return View(vm);
-        }
-
-        // ================== EDIT (GET) ==================
-        [HttpGet]
-        public async Task<IActionResult> Edit(int id)
-        {
-            var discountEvent = await _context.DiscountEvents
-                .Include(e => e.EventDetails) // Load kèm danh sách sản phẩm đã chọn
-                .FirstOrDefaultAsync(e => e.Id == id);
-
-            if (discountEvent == null) return NotFound();
-
-            var vm = new DiscountEventViewModel
-            {
-                Id = discountEvent.Id,
-                EventName = discountEvent.EventName,
-                Description = discountEvent.Description,
-                DiscountValue = discountEvent.DiscountValue,
-                DiscountType = discountEvent.DiscountType,
-                StartDate = discountEvent.StartDate,
-                EndDate = discountEvent.EndDate,
-                IsActive = discountEvent.IsActive,
-
-                // Lấy danh sách ID sản phẩm ĐANG tham gia sự kiện này
-                SelectedProductIds = discountEvent.EventDetails.Select(ed => ed.ProductID).ToList()
+                EventName = vm.EventName,
+                Description = vm.Description,
+                DiscountValue = vm.DiscountValue,
+                DiscountType = vm.DiscountType,
+                StartDate = vm.StartDate,
+                EndDate = vm.EndDate,
+                IsActive = vm.IsActive
             };
 
-            // Load lại danh sách tất cả sản phẩm
-            var products = _context.Products
-                .Select(p => new { p.Product_Id, DisplayName = $"{p.Product_Name} - {p.Price:N0}đ" })
-                .ToList();
+            _context.DiscountEvents.Add(discountEvent);
+            await _context.SaveChangesAsync();
 
-            // Truyền SelectedProductIds vào MultiSelectList để nó tự động "Tick" chọn những cái cũ
-            vm.ProductList = new MultiSelectList(products, "Product_Id", "DisplayName", vm.SelectedProductIds);
-
-            return View(vm);
-        }
-
-        // ================== EDIT (POST) ==================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(DiscountEventViewModel vm)
-        {
-            // --- [THÊM MỚI] VALIDATION LOGIC NGHIỆP VỤ ---
-            if (vm.DiscountType == 1 && vm.DiscountValue > 100)
+            if (vm.SelectedProductIds?.Any() == true)
             {
-                ModelState.AddModelError("DiscountValue", "Loại giảm giá là Phần trăm (%) thì giá trị tối đa là 100.");
-            }
-
-            if (vm.DiscountValue < 0)
-            {
-                ModelState.AddModelError("DiscountValue", "Giá trị giảm không được là số âm.");
-            }
-            // ----------------------------------------------
-
-            if (ModelState.IsValid)
-            {
-                var discountEvent = await _context.DiscountEvents.FindAsync(vm.Id);
-                if (discountEvent == null) return NotFound();
-
-                // 1. Cập nhật thông tin sự kiện
-                discountEvent.EventName = vm.EventName;
-                discountEvent.Description = vm.Description;
-                discountEvent.DiscountValue = vm.DiscountValue;
-                discountEvent.DiscountType = vm.DiscountType;
-                discountEvent.StartDate = vm.StartDate;
-                discountEvent.EndDate = vm.EndDate;
-                discountEvent.IsActive = vm.IsActive;
-
-                _context.DiscountEvents.Update(discountEvent);
-
-                // 2. Cập nhật danh sách sản phẩm (Xóa cũ -> Thêm mới)
-                var oldDetails = _context.EventDetails.Where(ed => ed.EventId == vm.Id);
-                _context.EventDetails.RemoveRange(oldDetails);
-
-                if (vm.SelectedProductIds != null && vm.SelectedProductIds.Any())
+                var details = vm.SelectedProductIds.Select(prodId => new EventDetail
                 {
-                    var newDetails = new List<EventDetail>();
-                    foreach (var prodId in vm.SelectedProductIds)
-                    {
-                        newDetails.Add(new EventDetail
-                        {
-                            EventId = vm.Id,
-                            ProductID = prodId,
-                            Status = true
-                        });
-                    }
-                    _context.EventDetails.AddRange(newDetails);
-                }
-
+                    EventId = discountEvent.Id,
+                    ProductID = prodId,
+                    Status = true
+                });
+                _context.EventDetails.AddRange(details);
                 await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Cap nhat chuong trinh su kien thanh cong!";
-                return RedirectToAction(nameof(Index));
             }
-
-            // Reload nếu lỗi
-            var products = _context.Products
-               .Select(p => new { p.Product_Id, DisplayName = $"{p.Product_Name} - {p.Price:N0}đ" })
-               .ToList();
-            vm.ProductList = new MultiSelectList(products, "Product_Id", "DisplayName", vm.SelectedProductIds);
-
-            return View(vm);
+            return Ok(new { success = true, message = "Tạo sự kiện thành công!" });
         }
 
-        // ================== DELETE ==================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
+        // Thêm API Update cho Angular
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateEvent(int id, [FromBody] DiscountEventViewModel vm)
+        {
+            var discountEvent = await _context.DiscountEvents.Include(e => e.EventDetails).FirstOrDefaultAsync(e => e.Id == id);
+            if (discountEvent == null) return NotFound(new { message = "Không tìm thấy sự kiện!" });
+
+            // 1. Cập nhật thông tin cơ bản
+            discountEvent.EventName = vm.EventName;
+            discountEvent.Description = vm.Description;
+            discountEvent.DiscountValue = vm.DiscountValue;
+            discountEvent.DiscountType = vm.DiscountType;
+            discountEvent.StartDate = vm.StartDate;
+            discountEvent.EndDate = vm.EndDate;
+            discountEvent.IsActive = vm.IsActive;
+
+            // 2. Cập nhật danh sách sản phẩm (Xóa cũ - Thêm mới)
+            _context.EventDetails.RemoveRange(discountEvent.EventDetails);
+            if (vm.SelectedProductIds?.Any() == true)
+            {
+                var newDetails = vm.SelectedProductIds.Select(prodId => new EventDetail
+                {
+                    EventId = id,
+                    ProductID = prodId,
+                    Status = true
+                });
+                _context.EventDetails.AddRange(newDetails);
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Cập nhật sự kiện thành công!" });
+        }
+
+        // DELETE: api/DiscountEvents/5
+        [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             var discountEvent = await _context.DiscountEvents.FindAsync(id);
             if (discountEvent == null) return NotFound();
 
-            // Cascade delete đã được cấu hình trong DbContext nên chỉ cần xóa Event là Detail tự bay màu
             _context.DiscountEvents.Remove(discountEvent);
             await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Xoa su kien giam gia thanh cong!";
-            return RedirectToAction(nameof(Index));
+            return Ok(new { success = true, message = "Xóa sự kiện thành công!" });
         }
 
-
-        // ================== DETAILS ==================
-        public async Task<IActionResult> Details(int id)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetEventDetail(int id)
         {
             var discountEvent = await _context.DiscountEvents
                 .Include(e => e.EventDetails)
-                    .ThenInclude(ed => ed.Product) // Lấy thông tin sản phẩm
-                        .ThenInclude(p => p.Category) // Lấy tên loại giày
+                    .ThenInclude(ed => ed.Product)
+                        .ThenInclude(p => p.Category)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
-            if (discountEvent == null)
-            {
-                return NotFound();
-            }
+            if (discountEvent == null) return NotFound(new { message = "Không tìm thấy sự kiện!" });
 
-            // Map dữ liệu sang ViewModel
+            // Map dữ liệu sang ViewModel tương tự cấu trúc bạn đã gửi
             var vm = new DiscountEventDetailViewModel
             {
                 Id = discountEvent.Id,
@@ -279,7 +160,6 @@ namespace Shoe.Controllers
                                ? "Đang diễn ra"
                                : (!discountEvent.IsActive ? "Đã tắt" : (discountEvent.EndDate < DateTime.Now ? "Đã kết thúc" : "Sắp diễn ra")),
 
-                // Map danh sách sản phẩm
                 Products = discountEvent.EventDetails.Select(ed => new ProductInEventViewModel
                 {
                     ProductId = ed.Product.Product_Id,
@@ -290,7 +170,7 @@ namespace Shoe.Controllers
                 }).ToList()
             };
 
-            return View(vm);
+            return Ok(vm);
         }
     }
 }

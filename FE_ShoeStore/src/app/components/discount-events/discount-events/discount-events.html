@@ -1,0 +1,146 @@
+<div class="animate-in fade-in duration-700">
+    <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter italic">Sự kiện giảm giá</h1>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 italic">Quản lý chương trình khuyến mãi hệ thống</p>
+        </div>
+        <button (click)="openAddModal()" class="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all transform active:scale-95">
+            <i class="fas fa-plus mr-2"></i> Tạo sự kiện mới
+        </button>
+    </div>
+
+    <div class="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50/50">
+                    <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sự kiện</th>
+                    <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Mức giảm</th>
+                    <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Sản phẩm</th>
+                    <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Thời gian</th>
+                    <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Trạng thái</th>
+                    <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+                <tr *ngFor="let e of events" class="hover:bg-slate-50/50 transition-colors group">
+                    <td class="px-8 py-6">
+                        <p class="font-black text-slate-900 uppercase tracking-tighter italic text-sm">{{ e.eventName }}</p>
+                        <p class="text-[10px] text-slate-400 font-bold truncate max-w-xs">{{ e.description }}</p>
+                    </td>
+                    <td class="px-8 py-6 text-center">
+                        <span class="bg-red-50 text-red-600 text-xs font-black px-3 py-1 rounded-xl border border-red-100">
+                            {{ e.discountDisplay }}
+                        </span>
+                    </td>
+                    <td class="px-8 py-6 text-center">
+                        <span class="text-xs font-black text-slate-700">{{ e.productCount }} SP</span>
+                    </td>
+                    <td class="px-8 py-6">
+                        <p class="text-[10px] font-bold text-slate-500 italic">BĐ: {{ e.startDate | date:'dd/MM/yyyy' }}</p>
+                        <p class="text-[10px] font-bold text-slate-500 italic">KT: {{ e.endDate | date:'dd/MM/yyyy' }}</p>
+                    </td>
+                    <td class="px-8 py-6 text-center">
+                        <span [ngClass]="{'bg-green-50 text-green-600 border-green-100': e.statusLabel === 'Đang diễn ra', 
+                                         'bg-slate-100 text-slate-400 border-slate-200': e.statusLabel !== 'Đang diễn ra'}"
+                              class="text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border shadow-sm">
+                            {{ e.statusLabel }}
+                        </span>
+                    </td>
+                    <td class="px-8 py-6 text-right">
+                        <div class="flex justify-end gap-2">
+                            <a [routerLink]="['/admin/discount-event-detail', e.id]" 
+                               class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm" title="Xem sản phẩm tham gia">
+                                <i class="fas fa-eye text-xs"></i>
+                            </a>
+                            <button (click)="openEditModal(e)" 
+                                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-orange-400 hover:bg-orange-500 hover:text-white transition-all shadow-sm" title="Sửa sự kiện">
+                                <i class="fas fa-edit text-xs"></i>
+                            </button>
+                            <button (click)="onDelete(e.id)" 
+                                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                                <i class="fas fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div *ngIf="isModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-6">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" (click)="closeModal()"></div>
+    <div class="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl z-10 p-12 animate-in zoom-in duration-500 max-h-[90vh] overflow-hidden flex flex-col">
+        <h3 class="text-2xl font-black text-slate-900 uppercase tracking-tighter italic mb-8 border-b pb-4">
+            {{ isEditMode ? 'Cập nhật sự kiện giảm giá' : 'Thiết lập sự kiện giảm giá' }}
+        </h3>
+        
+        <form (submit)="onSave()" class="grid grid-cols-2 gap-6 overflow-y-auto pr-4 custom-scroll">
+            <div class="col-span-2">
+                <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block">Tên sự kiện *</label>
+                <input type="text" [(ngModel)]="currentEvent.eventName" name="eName" required 
+                       class="w-full bg-slate-50 px-6 py-4 rounded-2xl outline-none font-bold border-2 border-transparent focus:border-indigo-500 transition-all">
+            </div>
+            
+            <div class="col-span-2">
+                <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block">Mô tả sự kiện</label>
+                <textarea [(ngModel)]="currentEvent.description" name="eDesc" rows="2" 
+                          class="w-full bg-slate-50 px-6 py-4 rounded-2xl outline-none font-medium text-slate-600 border-2 border-transparent focus:border-indigo-500 transition-all"></textarea>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block">Giá trị giảm *</label>
+                <input type="number" [(ngModel)]="currentEvent.discountValue" name="eVal" required
+                       class="w-full bg-slate-50 px-6 py-4 rounded-2xl outline-none font-bold border-2 border-transparent focus:border-indigo-500 transition-all">
+            </div>
+            <div>
+                <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block">Loại giảm giá</label>
+                <select [(ngModel)]="currentEvent.discountType" name="eType" 
+                        class="w-full bg-slate-50 px-6 py-4 rounded-2xl outline-none font-bold border-2 border-transparent focus:border-indigo-500 transition-all">
+                    <option [value]="1">Phần trăm (%)</option>
+                    <option [value]="2">Số tiền cố định (VNĐ)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block">Ngày bắt đầu *</label>
+                <input type="date" [(ngModel)]="currentEvent.startDate" name="sDate" required 
+                       class="w-full bg-slate-50 px-6 py-4 rounded-2xl outline-none font-bold border-2 border-transparent focus:border-indigo-500 transition-all">
+            </div>
+            <div>
+                <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 block">Ngày kết thúc *</label>
+                <input type="date" [(ngModel)]="currentEvent.endDate" name="eDate" required 
+                       class="w-full bg-slate-50 px-6 py-4 rounded-2xl outline-none font-bold border-2 border-transparent focus:border-indigo-500 transition-all">
+            </div>
+            
+            <div class="col-span-2">
+                <label class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4 block">Áp dụng cho sản phẩm (Click để chọn)</label>
+                <div class="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto p-4 bg-slate-50 rounded-[2rem] border border-slate-100 custom-scroll shadow-inner">
+                    <div *ngFor="let p of productList" 
+                         (click)="toggleProduct(p.product_Id)"
+                         class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all border-2"
+                         [ngClass]="currentEvent.selectedProductIds.includes(p.product_Id) ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-white border-transparent hover:border-slate-200'">
+                        
+                        <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all"
+                             [ngClass]="currentEvent.selectedProductIds.includes(p.product_Id) ? 'bg-indigo-600 border-indigo-600 shadow-indigo-200 shadow-lg' : 'bg-white border-slate-200'">
+                            <i class="fas fa-check text-[10px] text-white" *ngIf="currentEvent.selectedProductIds.includes(p.product_Id)"></i>
+                        </div>
+                        
+                        <div class="flex-1 overflow-hidden">
+                            <p class="text-[11px] font-black text-slate-800 leading-tight mb-1 truncate">{{ p.product_Name }}</p>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{{ p.price | number }}đ</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-[9px] font-bold text-slate-400 mt-3 italic">* Đã chọn {{ currentEvent.selectedProductIds.length }} sản phẩm tham gia sự kiện.</p>
+            </div>
+
+            <div class="col-span-2 flex justify-end gap-4 mt-6 sticky bottom-0 bg-white pt-4">
+                <button type="button" (click)="closeModal()" class="px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors">Hủy bỏ</button>
+                <button type="submit" class="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">
+                    {{ isEditMode ? 'Cập nhật hệ thống' : 'Kích hoạt sự kiện' }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

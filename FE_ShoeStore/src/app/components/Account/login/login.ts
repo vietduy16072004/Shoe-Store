@@ -75,7 +75,7 @@ export class LoginComponent implements AfterViewInit {
         if (res.success) {
           localStorage.setItem('username', res.username);
           localStorage.setItem('userRole', res.role);
-          this.router.navigate([res.role === 'Admin' ? '/product-list' : '/customer/home']);
+          this.router.navigate([res.role === 'Admin' ? '/admin/product-list' : '/home']);
         }
       },
       error: (err) => Swal.fire('Thất bại', err.error?.message || 'Sai tài khoản hoặc mật khẩu!', 'error')

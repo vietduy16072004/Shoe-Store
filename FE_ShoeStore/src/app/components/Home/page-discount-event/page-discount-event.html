@@ -1,0 +1,94 @@
+<div class="container mx-auto p-6 lg:p-10 animate-in fade-in duration-700">
+  
+  <div class="text-center mb-12">
+      <h1 class="text-5xl font-black text-slate-900 uppercase tracking-tighter italic mb-6">Chương trình khuyến mãi</h1>
+      
+      <div class="flex flex-wrap justify-center gap-3 mt-8">
+          <button (click)="scrollToEvent('all')" 
+                  [ngClass]="selectedEventId === 'all' ? 'bg-red-500 text-white shadow-red-200' : 'bg-white text-slate-400 border-slate-100'"
+                  class="px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest border shadow-lg transition-all transform active:scale-95">
+              Tất cả
+          </button>
+          <button *ngFor="let e of eventsWithProducts" 
+                  (click)="scrollToEvent(e.id)" 
+                  [ngClass]="selectedEventId == e.id ? 'bg-red-500 text-white shadow-red-200' : 'bg-white text-slate-400 border-slate-100'"
+                  class="px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest border shadow-lg transition-all transform active:scale-95">
+              {{ e.eventName }} 
+          </button>
+      </div>
+  </div>
+
+  <div *ngIf="!isLoading && eventsWithProducts.length > 0">
+      <div *ngFor="let evt of eventsWithProducts" [id]="'event-' + evt.id" class="mb-24 animate-in slide-in-from-bottom-10 duration-1000">
+          
+          <div class="bg-gradient-to-r from-red-600 to-orange-500 rounded-[3rem] p-10 mb-10 text-white shadow-2xl shadow-red-100 relative overflow-hidden group">
+              <div class="absolute -right-10 -bottom-10 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                  <i class="fas fa-gift text-[15rem]"></i>
+              </div>
+              <div class="relative z-10 flex flex-wrap justify-between items-end gap-6">
+                  <div class="max-w-2xl">
+                      <span class="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-[0.2em] mb-4 block w-fit">Special Event</span>
+                      <h2 class="text-5xl font-black uppercase tracking-tighter italic mb-3">{{ evt.eventName }} </h2>
+                      <p class="text-white/80 font-bold text-sm italic">{{ evt.description }}</p>
+                  </div>
+                  <div class="flex flex-col items-end">
+                      <span class="text-6xl font-black tracking-tighter italic leading-none mb-2">{{ evt.discountDisplay }} OFF </span>
+                      <span class="text-[10px] font-black uppercase tracking-widest opacity-70">
+                          <i class="far fa-clock mr-2"></i>Kết thúc: {{ evt.endDate | date:'dd/MM/yyyy' }}
+                      </span>
+                  </div>
+              </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <div *ngFor="let p of evt.products" class="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm hover:shadow-xl transition-all duration-500 group relative flex flex-col">
+                  
+                  <div class="relative overflow-hidden rounded-[2rem] mb-6 aspect-square bg-slate-50">
+                      <img [src]="p.imageUrl" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" [alt]="p.product_Name"> 
+                      <div class="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-lg font-black text-[8px] uppercase">
+                          -{{ evt.discountDisplay }} 
+                      </div>
+                  </div>
+
+                  <div class="space-y-1 mb-6 flex-1">
+                      <p class="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{{ p.categoryName }}</p>
+                      <h3 class="text-sm font-black text-slate-900 uppercase tracking-tighter italic line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                          {{ p.product_Name }} 
+                      </h3>
+                  </div>
+
+                  <div class="flex items-baseline gap-3 mb-6">
+                      <span class="text-lg font-black text-slate-900 tracking-tight">{{ p.finalPrice | number:'1.0-0' }}đ</span> 
+                      <span class="text-[10px] text-slate-300 line-through font-bold">{{ p.originalPrice | number:'1.0-0' }}đ</span> 
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-3 mt-auto">
+                      <button [routerLink]="['/admin/product-detail', p.product_Id]" 
+                              class="bg-slate-50 text-slate-900 py-3.5 rounded-2xl font-black text-[8px] uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm">
+                          Chi tiết 
+                      </button>
+                      <button (click)="openAddToCart(p)" 
+                              class="bg-indigo-600 text-white py-3.5 rounded-2xl font-black text-[8px] uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2">
+                          <i class="fas fa-shopping-cart text-[9px]"></i> Thêm vào giỏ
+                      </button>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <div *ngIf="isLoading" class="py-40 text-center">
+      <div class="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Đang tải kho ưu đãi...</p> 
+  </div>
+
+  <div *ngIf="!isLoading && eventsWithProducts.length === 0" class="text-center py-40 bg-white rounded-[4rem] border border-slate-100">
+      <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+          <i class="fas fa-calendar-times text-slate-200 text-2xl"></i>
+      </div>
+      <h4 class="text-xl font-black text-slate-900 uppercase tracking-tighter italic">Hẹn gặp lại bạn sau!</h4>
+      <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-2">Hiện chưa có chương trình giảm giá nào đang diễn ra.</p> 
+  </div>
+</div>
+
+<app-add-to-cart *ngIf="selectedProduct" [product]="selectedProduct" (close)="selectedProduct = null"></app-add-to-cart>
